@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TaskMaster</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --sidebar-bg: #f3f4f6;
+            --main-bg: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+        }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--sidebar-bg); border-right: 1px solid #e5e7eb; padding: 20px 0; display: flex; flex-direction: column; }
+        .nav-item { padding: 12px 24px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: var(--text-main); font-weight: 500; }
+        .nav-item:hover { background: #e5e7eb; }
+        .nav-item.active { color: var(--primary); background: #dbeafe; border-left: 4px solid var(--primary); }
+
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; background: var(--main-bg); }
+        .header { padding: 20px 40px; border-bottom: 1px solid #f3f4f6; }
+        
+        /* Progress Bar Styles */
+        .header-top { display: flex; align-items: center; gap: 20px; }
+        .status-container { flex: 1; max-width: 300px; }
+        .progress-bg { background: #e5e7eb; height: 8px; border-radius: 10px; overflow: hidden; }
+        .progress-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.4s ease-out; }
+        .stats-text { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
+
+        .search-container { position: relative; margin-top: 20px; }
+        .search-bar { width: 100%; max-width: 600px; padding: 10px 40px; border-radius: 6px; border: 1px solid #e5e7eb; background: #f9fafb; outline: none; }
+        
+        /* Task List Area */
+        .task-view { flex: 1; padding: 20px 40px; overflow-y: auto; }
+        .task-row { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #f3f4f6; gap: 15px; }
+        .task-row:hover { background: #fafafa; }
+        .task-text { flex: 1; font-size: 15px; }
+        .completed { text-decoration: line-through; color: var(--text-muted); }
+        
+        /* Input Area */
+        .add-task-fixed { padding: 20px 40px; border-top: 1px solid #f3f4f6; display: flex; gap: 10px; }
+        .add-input { flex: 1; padding: 12px; border: 1px solid #e5e7eb; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="nav-item active">Current List</div>
+        <div class="nav-item">Lists</div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <div class="header-top">
+                <h1 id="viewTitle" style="margin:0;">Tasks</h1>
+                
+                <div class="status-container">
+                    <div class="progress-bg">
+                        <div id="statusBar" class="progress-fill"></div>
+                    </div>
+                    <div id="statsText" class="stats-text">Updating...</div>
+                </div>
+            </div>
+
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-bar" placeholder="Search tasks..." oninput="filterTasks()">
+            </div>
+        </div>
+
+        <div class="task-view" id="taskList"></div>
+
+        <div class="add-task-fixed">
+            <input type="text" id="taskInput" class="add-input" placeholder="+ Add a task">
+            <button onclick="addTask()" style="background: var(--primary); color: white; border: none; padding: 0 20px; border-radius: 4px; cursor: pointer;">Add</button>
+        </div>
+    </div>
+
+<script>
+    const API_URL = "http://127.0.0.1:8000";
+    let allTasks = []; 
+
+    // This calls your NEW backend stats endpoint
+    async function updateStats() {
+        try {
+            const res = await fetch(`${API_URL}/tasks/stats`);
+            const data = await res.json();
+            
+            // Updates UI based on BACKEND calculations
+            document.getElementById('statusBar').style.width = data.progress_percentage + "%";
+            document.getElementById('statsText').innerText = 
+                `${data.completed} of ${data.total} tasks completed (${data.progress_percentage}%)`;
+        } catch (e) {
+            console.log("Stats endpoint not found yet - make sure to add it to main.py!");
+        }
+    }
+
+    async function loadTasks() {
+        const res = await fetch(`${API_URL}/tasks`);
+        allTasks = await res.json();
+        renderTasks(allTasks);
+        updateStats(); // Refresh stats whenever tasks load
+    }
+
+    function renderTasks(tasksToDisplay) {
+        const list = document.getElementById('taskList');
+        list.innerHTML = '';
+        tasksToDisplay.sort((a,b) => a.id - b.id).forEach(task => {
+            list.innerHTML += `
+                <div class="task-row">
+                    <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask(${task.id}, this.checked)">
+                    <span class="task-text ${task.completed ? 'completed' : ''}">${task.title}</span>
+                    <button onclick="deleteTask(${task.id})" style="color:red; background:none; border:none; cursor:pointer;">Delete</button>
+                </div>`;
+        });
+    }
+
+    function filterTasks() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allTasks.filter(t => t.title.toLowerCase().includes(query));
+        renderTasks(filtered);
+    }
+
+    async function addTask() {
+        const input = document.getElementById('taskInput');
+        if (!input.value) return;
+        await fetch(`${API_URL}/task?task_name=${encodeURIComponent(input.value)}`, { method: 'POST' });
+        input.value = '';
+        loadTasks();
+    }
+
+    async function toggleTask(id, isCompleted) {
+        await fetch(`${API_URL}/task/${id}?completed=${isCompleted}`, { method: 'PUT' });
+        loadTasks();
+    }
+
+    async function deleteTask(id) {
+        await fetch(`${API_URL}/task/${id}`, { method: 'DELETE' });
+        loadTasks();
+    }
+
+    loadTasks();
+</script>
+</body>
+</html>
