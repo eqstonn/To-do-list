@@ -1,4 +1,4 @@
-# Task Management API
+# Task Management Service
 
 A web application designed for task tracking with persistent data storage and a decoupled backend architecture.
 
