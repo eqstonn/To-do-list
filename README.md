@@ -36,11 +36,3 @@ The application calculates task statistics on the backend rather than the client
 
 ### Search Logic
 Task filtering is handled server-side using SQLAlchemy's `.contains()` method. This allows the database to perform the search operation using SQL `LIKE` logic, which is more efficient for larger datasets than fetching all records and filtering via JavaScript.
-
-
-
-## Getting Started
-
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/YOUR_USERNAME/repository-name.git](https://github.com/YOUR_USERNAME/repository-name.git)
